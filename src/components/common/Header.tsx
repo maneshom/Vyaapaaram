@@ -12,7 +12,9 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertCircle,
+  Download,
 } from 'lucide-react';
+import { usePWA } from '../../utils/usePWA';
 
 export type TabType = 'dashboard' | 'products' | 'purchases' | 'sales' | 'reports' | 'settings';
 
@@ -30,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onTabChange }) => {
     triggerSync,
     lastSyncResult,
   } = useApp();
+  const { canInstall, promptInstall } = usePWA();
 
   return (
     <header className="app-header">
@@ -86,6 +89,19 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onTabChange }) => {
 
         {/* Header Right Actions */}
         <div className="header-actions">
+          {/* PWA Install Button (shown when installable) */}
+          {canInstall && (
+            <button
+              onClick={promptInstall}
+              className="btn btn-primary btn-sm"
+              style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              title="Install Vyaapaaram App"
+            >
+              <Download size={14} />
+              <span>Install App</span>
+            </button>
+          )}
+
           {/* Connectivity / Sync Status Badge */}
           <button
             onClick={() => triggerSync()}

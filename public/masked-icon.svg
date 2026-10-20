@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="mTealGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d9488" />
+      <stop offset="50%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#115e59" />
+    </linearGradient>
+    <linearGradient id="mCardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.05" />
+    </linearGradient>
+    <filter id="mShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#042f2e" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Full background bleed (100% canvas for maskable) -->
+  <rect width="512" height="512" fill="url(#mTealGrad)" />
+
+  <!-- Inner safe-zone card (centered, within 80% circle) -->
+  <g transform="translate(256 256) scale(0.85) translate(-256 -256)">
+    <rect x="100" y="100" width="312" height="312" rx="44" fill="url(#mCardGrad)" stroke="rgba(255,255,255,0.25)" stroke-width="2" filter="url(#mShadow)" />
+    
+    <!-- Growth bars -->
+    <rect x="330" y="270" width="22" height="90" rx="11" fill="#38bdf8" opacity="0.8" />
+    <rect x="362" y="220" width="22" height="140" rx="11" fill="#2dd4bf" />
+    <path d="M 280 250 L 340 190 L 370 190 L 370 220" fill="none" stroke="#2dd4bf" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- Indian Rupee (₹) Symbol -->
+    <g fill="#ffffff" filter="url(#mShadow)">
+      <rect x="150" y="180" width="120" height="20" rx="6" />
+      <rect x="150" y="220" width="105" height="20" rx="6" />
+      <rect x="175" y="180" width="22" height="180" rx="6" />
+      <path d="M 180 200 Q 255 200 255 235 Q 255 270 180 270" fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round" />
+      <path d="M 195 270 L 265 360" stroke="#ffffff" stroke-width="22" stroke-linecap="round" />
+    </g>
+  </g>
+</svg>
