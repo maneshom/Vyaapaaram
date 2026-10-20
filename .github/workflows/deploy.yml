@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - main
       - v1
   workflow_dispatch:
 
@@ -42,10 +43,13 @@ jobs:
         id: pages
         uses: actions/configure-pages@v5
 
-      - name: Build application
+      - name: Build application (PWA)
         env:
           BASE_URL: ${{ steps.pages.outputs.base_path }}/
-        run: npm run build
+        run: |
+          npm run build
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
