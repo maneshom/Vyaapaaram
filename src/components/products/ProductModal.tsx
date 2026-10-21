@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Product } from '../../types';
 import { rupeesToPaise, paiseToInputString } from '../../utils/money';
 import { useApp } from '../../context/AppContext';
-import { X } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -18,6 +18,7 @@ interface ProductModalProps {
     low_stock_threshold?: number;
   }) => Promise<void>;
   product?: Product | null;
+  onDelete?: (product: Product) => void;
 }
 
 export const ProductModal: React.FC<ProductModalProps> = ({
@@ -25,6 +26,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   onClose,
   onSave,
   product,
+  onDelete,
 }) => {
   const { currencyPreference } = useApp();
   const [name, setName] = useState('');
@@ -232,22 +234,38 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             </div>
           </div>
 
-          <div className="modal-footer">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Saving...' : product ? 'Update Product' : 'Add Product'}
-            </button>
+          <div className="modal-footer" style={{ justifyContent: product && onDelete ? 'space-between' : 'flex-end' }}>
+            {product && onDelete && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => onDelete(product)}
+                disabled={isSubmitting}
+                style={{ color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                title="Delete this product"
+              >
+                <Trash2 size={15} />
+                <span>Delete Product</span>
+              </button>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onClose}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Saving...' : product ? 'Update Product' : 'Add Product'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

@@ -11,16 +11,19 @@ import {
   ShoppingBag,
   DollarSign,
   TrendingUp,
+  Trash2,
 } from 'lucide-react';
 
 interface ProductsViewProps {
   onOpenNewProduct: (prod?: Product) => void;
   onOpenNewPurchase: (productId?: string) => void;
+  onOpenDeleteProduct?: (prod: Product) => void;
 }
 
 export const ProductsView: React.FC<ProductsViewProps> = ({
   onOpenNewProduct,
   onOpenNewPurchase,
+  onOpenDeleteProduct,
 }) => {
   const { formatCurrency, dataVersion } = useApp();
   const [products, setProducts] = useState<Product[]>([]);
@@ -296,6 +299,16 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                             >
                               <Edit2 size={14} /> Edit
                             </button>
+                            {onOpenDeleteProduct && (
+                              <button
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => onOpenDeleteProduct(p)}
+                                title="Delete product"
+                                style={{ color: 'var(--danger)' }}
+                              >
+                                <Trash2 size={14} /> Delete
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

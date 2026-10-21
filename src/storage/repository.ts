@@ -34,8 +34,6 @@ export class Repository {
       id: 'default',
       business_name: 'Vyaapaaram Store',
       currency_format: 'symbol',
-      cloud_sync_enabled: false,
-      workspace_id: 'default-workspace',
     };
     await this.storage.putSettings(defaultSettings);
     return defaultSettings;
@@ -95,22 +93,48 @@ export class Repository {
       low_stock_threshold: params.low_stock_threshold !== undefined ? Math.max(0, params.low_stock_threshold) : (existing?.low_stock_threshold ?? 5),
       created_at: existing?.created_at || now,
       updated_at: now,
-      sync_status: 'pending',
     };
 
     await this.storage.putProduct(product);
     return product;
   }
 
-  async deleteProduct(id: string): Promise<void> {
-    // Check if product is referenced in purchases or sales
-    const purchases = await this.storage.getPurchases();
-    if (purchases.some((p) => p.product_id === id)) {
-      throw new Error('Cannot delete product with existing purchase records. Adjust stock instead.');
+  async checkProductUsage(id: string): Promise<{
+    canDelete: boolean;
+    purchaseCount: number;
+    saleCount: number;
+    reason?: string;
+  }> {
+    const [purchases, sales] = await Promise.all([
+      this.storage.getPurchases(),
+      this.storage.getSales(),
+    ]);
+    const purchaseCount = purchases.filter((p) => p.product_id === id).length;
+    const saleCount = sales.filter((s) => s.items.some((i) => i.product_id === id)).length;
+
+    if (purchaseCount > 0 || saleCount > 0) {
+      const parts: string[] = [];
+      if (purchaseCount > 0) parts.push(`${purchaseCount} purchase record${purchaseCount > 1 ? 's' : ''}`);
+      if (saleCount > 0) parts.push(`${saleCount} historical sale${saleCount > 1 ? 's' : ''}`);
+      return {
+        canDelete: false,
+        purchaseCount,
+        saleCount,
+        reason: `This product is referenced in ${parts.join(' and ')}. To protect your historical accounting and profit records, it cannot be permanently deleted. You can set its current stock to 0 instead.`,
+      };
     }
-    const sales = await this.storage.getSales();
-    if (sales.some((s) => s.items.some((i) => i.product_id === id))) {
-      throw new Error('Cannot delete product with historical sales. Adjust stock instead.');
+
+    return {
+      canDelete: true,
+      purchaseCount: 0,
+      saleCount: 0,
+    };
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    const usage = await this.checkProductUsage(id);
+    if (!usage.canDelete) {
+      throw new Error(usage.reason || 'Cannot delete product with existing transaction records.');
     }
     await this.storage.deleteProduct(id);
   }
@@ -168,7 +192,6 @@ export class Repository {
       supplier: params.supplier?.trim() || undefined,
       note: params.note?.trim() || undefined,
       created_at: now,
-      sync_status: 'pending',
     };
 
     const updatedProduct: Product = {
@@ -176,7 +199,6 @@ export class Repository {
       current_stock: newStock,
       average_cost_paise: newAverageCostPaise,
       updated_at: now,
-      sync_status: 'pending',
     };
 
     // Atomic persistence
@@ -272,7 +294,6 @@ export class Repository {
       profit_after_direct_costs_paise: calculated.profit_after_direct_costs_paise,
       status: 'completed',
       created_at: now,
-      sync_status: 'pending',
     };
 
     // 5. Deduct stock for all affected products
@@ -283,7 +304,6 @@ export class Repository {
         ...prod,
         current_stock: prod.current_stock - line.quantity,
         updated_at: now,
-        sync_status: 'pending',
       };
       productMap.set(prod.id, updatedProd);
       updatedProducts.push(updatedProd);
@@ -322,7 +342,6 @@ export class Repository {
           ...prod,
           current_stock: prod.current_stock + item.quantity,
           updated_at: now,
-          sync_status: 'pending',
         };
         await this.storage.putProduct(restored);
         restoredProducts.push(restored);
@@ -334,7 +353,6 @@ export class Repository {
       status: 'voided',
       void_reason: trimmedReason,
       voided_at: now,
-      sync_status: 'pending',
     };
 
     await this.storage.putSale(voidedSale);

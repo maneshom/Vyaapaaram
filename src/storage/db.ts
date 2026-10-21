@@ -6,7 +6,6 @@ export interface VyaapaaramDB extends DBSchema {
     key: string;
     value: Product;
     indexes: {
-      'by-sync-status': string;
       'by-updated-at': string;
     };
   };
@@ -16,7 +15,6 @@ export interface VyaapaaramDB extends DBSchema {
     indexes: {
       'by-product-id': string;
       'by-date': string;
-      'by-sync-status': string;
     };
   };
   sales: {
@@ -25,7 +23,6 @@ export interface VyaapaaramDB extends DBSchema {
     indexes: {
       'by-date': string;
       'by-status': string;
-      'by-sync-status': string;
       'by-sale-number': string;
     };
   };
@@ -163,7 +160,6 @@ class IndexedDBStorage implements IStorageProvider {
           // Products store
           if (!db.objectStoreNames.contains('products')) {
             const productStore = db.createObjectStore('products', { keyPath: 'id' });
-            productStore.createIndex('by-sync-status', 'sync_status');
             productStore.createIndex('by-updated-at', 'updated_at');
           }
 
@@ -172,7 +168,6 @@ class IndexedDBStorage implements IStorageProvider {
             const purchaseStore = db.createObjectStore('purchases', { keyPath: 'id' });
             purchaseStore.createIndex('by-product-id', 'product_id');
             purchaseStore.createIndex('by-date', 'date');
-            purchaseStore.createIndex('by-sync-status', 'sync_status');
           }
 
           // Sales store
@@ -180,7 +175,6 @@ class IndexedDBStorage implements IStorageProvider {
             const saleStore = db.createObjectStore('sales', { keyPath: 'id' });
             saleStore.createIndex('by-date', 'date');
             saleStore.createIndex('by-status', 'status');
-            saleStore.createIndex('by-sync-status', 'sync_status');
             saleStore.createIndex('by-sale-number', 'sale_number');
           }
 

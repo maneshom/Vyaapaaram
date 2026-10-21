@@ -7,11 +7,6 @@ import {
   TrendingUp,
   BarChart3,
   Settings as SettingsIcon,
-  Wifi,
-  WifiOff,
-  RefreshCw,
-  CheckCircle2,
-  AlertCircle,
   Download,
 } from 'lucide-react';
 import { usePWA } from '../../utils/usePWA';
@@ -24,14 +19,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ currentTab, onTabChange }) => {
-  const {
-    settings,
-    isOnline,
-    pendingSyncCount,
-    isSyncing,
-    triggerSync,
-    lastSyncResult,
-  } = useApp();
+  const { settings } = useApp();
   const { canInstall, promptInstall } = usePWA();
 
   return (
@@ -101,43 +89,6 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, onTabChange }) => {
               <span>Install App</span>
             </button>
           )}
-
-          {/* Connectivity / Sync Status Badge */}
-          <button
-            onClick={() => triggerSync()}
-            disabled={isSyncing}
-            className="btn btn-secondary btn-sm"
-            style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
-            title={
-              isOnline
-                ? pendingSyncCount > 0
-                  ? `${pendingSyncCount} changes waiting to sync. Click to sync now.`
-                  : 'Connected and synced.'
-                : 'Working offline. Changes are saved locally on this device.'
-            }
-          >
-            {isSyncing ? (
-              <>
-                <RefreshCw size={14} className="spin" style={{ animation: 'spin 1s linear infinite' }} />
-                <span>Syncing...</span>
-              </>
-            ) : !isOnline ? (
-              <>
-                <WifiOff size={14} style={{ color: 'var(--warning)' }} />
-                <span style={{ color: 'var(--warning)' }}>Offline</span>
-              </>
-            ) : pendingSyncCount > 0 ? (
-              <>
-                <RefreshCw size={14} style={{ color: 'var(--accent)' }} />
-                <span>Sync ({pendingSyncCount})</span>
-              </>
-            ) : (
-              <>
-                <CheckCircle2 size={14} style={{ color: 'var(--success)' }} />
-                <span style={{ color: 'var(--success)' }}>Synced</span>
-              </>
-            )}
-          </button>
 
           {/* Settings Icon */}
           <button
