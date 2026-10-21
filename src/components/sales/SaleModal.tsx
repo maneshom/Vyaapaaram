@@ -286,7 +286,7 @@ export const SaleModal: React.FC<SaleModalProps> = ({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '1.2fr 1fr 1fr',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
                 gap: '0.75rem',
                 marginBottom: '1rem',
               }}
@@ -455,6 +455,45 @@ export const SaleModal: React.FC<SaleModalProps> = ({
                   </div>
                 );
               })}
+
+              {items.length === 0 && (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '1.25rem 1rem',
+                    backgroundColor: 'var(--gray-50)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px dashed var(--gray-300)',
+                    marginTop: '0.5rem',
+                  }}
+                >
+                  <p style={{ fontSize: '0.875rem', color: 'var(--gray-500)', marginBottom: '0.75rem' }}>
+                    No products added to this sale yet.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleAddItem}
+                    className="btn btn-primary btn-sm"
+                    style={{ gap: '0.35rem' }}
+                  >
+                    <Plus size={15} /> Add Product
+                  </button>
+                </div>
+              )}
+
+              {/* Add button under products list */}
+              {items.length > 0 && (
+                <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+                  <button
+                    type="button"
+                    onClick={handleAddItem}
+                    className="btn btn-secondary btn-sm"
+                    style={{ gap: '0.35rem', fontWeight: 600 }}
+                  >
+                    <Plus size={15} /> Add Another Product
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Courier & Direct Sale Expenses */}
@@ -484,7 +523,7 @@ export const SaleModal: React.FC<SaleModalProps> = ({
                 </span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ fontSize: '0.8rem' }}>
                     Delivery charged to customer
@@ -659,8 +698,10 @@ export const SaleModal: React.FC<SaleModalProps> = ({
               type="submit"
               className="btn btn-primary"
               disabled={isSubmitting || items.length === 0 || stockErrors.length > 0}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
             >
-              {isSubmitting ? 'Saving Sale...' : 'Complete Sale'}
+              <Plus size={16} />
+              <span>{isSubmitting ? 'Recording Sale...' : 'Record Sale'}</span>
             </button>
           </div>
         </form>

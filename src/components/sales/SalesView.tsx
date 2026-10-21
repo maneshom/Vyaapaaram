@@ -18,12 +18,14 @@ interface SalesViewProps {
   onOpenNewSale: () => void;
   onViewSaleReceipt: (sale: Sale) => void;
   products: Product[];
+  onOpenNewProduct?: () => void;
 }
 
 export const SalesView: React.FC<SalesViewProps> = ({
   onOpenNewSale,
   onViewSaleReceipt,
   products,
+  onOpenNewProduct,
 }) => {
   const { formatCurrency, dataVersion } = useApp();
   const [sales, setSales] = useState<Sale[]>([]);
@@ -114,11 +116,41 @@ export const SalesView: React.FC<SalesViewProps> = ({
             className="btn btn-primary"
             onClick={onOpenNewSale}
             disabled={products.length === 0}
+            title={products.length === 0 ? 'Add at least one product before recording sales' : 'Record a new sale'}
           >
             <Plus size={16} /> Record Sale
           </button>
         </div>
       </div>
+
+      {/* Info message when no products exist yet */}
+      {products.length === 0 && (
+        <div
+          className="alert alert-info"
+          style={{
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+            <span>You need to add products to your catalog before you can record sales.</span>
+          </div>
+          {onOpenNewProduct && (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={onOpenNewProduct}
+              style={{ gap: '0.35rem', flexShrink: 0 }}
+            >
+              <Plus size={14} /> Add Product
+            </button>
+          )}
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="stat-grid" style={{ marginBottom: '1rem' }}>
@@ -185,7 +217,7 @@ export const SalesView: React.FC<SalesViewProps> = ({
           />
         </div>
 
-        <div style={{ display: 'flex', gap: '0.35rem' }}>
+        <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             className={`btn btn-sm ${statusFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setStatusFilter('all')}
@@ -203,6 +235,15 @@ export const SalesView: React.FC<SalesViewProps> = ({
             onClick={() => setStatusFilter('voided')}
           >
             Voided ({stats.voidedCount})
+          </button>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={onOpenNewSale}
+            disabled={products.length === 0}
+            title={products.length === 0 ? 'Add at least one product before recording sales' : 'Record a new sale'}
+            style={{ marginLeft: '0.25rem' }}
+          >
+            <Plus size={14} /> Record Sale
           </button>
         </div>
       </div>
@@ -223,12 +264,20 @@ export const SalesView: React.FC<SalesViewProps> = ({
               <p className="empty-desc">
                 {searchQuery || statusFilter !== 'all'
                   ? 'Try clearing your search or filter tab.'
+                  : products.length === 0
+                  ? 'Add your first product to start recording sales.'
                   : 'Start recording sales with customer prices and courier amounts.'}
               </p>
-              {!searchQuery && statusFilter === 'all' && products.length > 0 && (
-                <button className="btn btn-primary" onClick={onOpenNewSale}>
-                  <Plus size={16} /> Record First Sale
-                </button>
+              {!searchQuery && statusFilter === 'all' && (
+                products.length > 0 ? (
+                  <button className="btn btn-primary" onClick={onOpenNewSale}>
+                    <Plus size={16} /> Record First Sale
+                  </button>
+                ) : onOpenNewProduct ? (
+                  <button className="btn btn-primary" onClick={onOpenNewProduct}>
+                    <Plus size={16} /> Add Your First Product
+                  </button>
+                ) : null
               )}
             </div>
           ) : (

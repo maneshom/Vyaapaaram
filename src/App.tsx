@@ -139,6 +139,7 @@ export const App: React.FC = () => {
             onOpenNewSale={handleOpenNewSale}
             onViewSaleReceipt={handleViewReceipt}
             products={products}
+            onOpenNewProduct={handleOpenNewProduct}
           />
         )}
 
