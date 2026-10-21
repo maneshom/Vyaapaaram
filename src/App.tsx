@@ -10,6 +10,7 @@ import { ReportsView } from './components/reports/ReportsView';
 import { SettingsView } from './components/settings/SettingsView';
 
 import { ProductModal } from './components/products/ProductModal';
+import { DeleteProductDialog } from './components/products/DeleteProductDialog';
 import { PurchaseModal } from './components/purchases/PurchaseModal';
 import { SaleModal } from './components/sales/SaleModal';
 import { SaleReceiptModal } from './components/sales/SaleReceiptModal';
@@ -33,6 +34,7 @@ export const App: React.FC = () => {
 
   const [activeReceiptSale, setActiveReceiptSale] = useState<Sale | null>(null);
   const [activeVoidSale, setActiveVoidSale] = useState<Sale | null>(null);
+  const [activeDeleteProduct, setActiveDeleteProduct] = useState<Product | null>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
 
@@ -103,6 +105,31 @@ export const App: React.FC = () => {
     setActiveReceiptSale(result.sale);
   };
 
+  const handleOpenDeleteProduct = (prod: Product) => {
+    setActiveDeleteProduct(prod);
+  };
+
+  const handleConfirmDeleteProduct = async (productId: string) => {
+    await repository.deleteProduct(productId);
+    refreshData();
+    loadProducts();
+  };
+
+  const handleZeroStockProduct = async (prod: Product) => {
+    await repository.saveProduct({
+      id: prod.id,
+      name: prod.name,
+      sku: prod.sku,
+      unit: prod.unit,
+      current_stock: 0,
+      average_cost_paise: prod.average_cost_paise,
+      selling_price_suggestion_paise: prod.selling_price_suggestion_paise,
+      low_stock_threshold: prod.low_stock_threshold,
+    });
+    refreshData();
+    loadProducts();
+  };
+
   return (
     <div className="app-container">
       {/* Header with Navigation and Sync Status */}
@@ -124,6 +151,7 @@ export const App: React.FC = () => {
           <ProductsView
             onOpenNewProduct={handleOpenNewProduct}
             onOpenNewPurchase={handleOpenNewPurchase}
+            onOpenDeleteProduct={handleOpenDeleteProduct}
           />
         )}
 
@@ -157,6 +185,19 @@ export const App: React.FC = () => {
         onClose={() => setIsProductModalOpen(false)}
         product={editingProduct}
         onSave={handleSaveProduct}
+        onDelete={(prod) => {
+          setIsProductModalOpen(false);
+          handleOpenDeleteProduct(prod);
+        }}
+      />
+
+      {/* Delete Product Confirmation Dialog */}
+      <DeleteProductDialog
+        isOpen={!!activeDeleteProduct}
+        onClose={() => setActiveDeleteProduct(null)}
+        product={activeDeleteProduct}
+        onConfirmDelete={handleConfirmDeleteProduct}
+        onZeroStock={handleZeroStockProduct}
       />
 
       {/* Purchase / Stock Addition Modal */}

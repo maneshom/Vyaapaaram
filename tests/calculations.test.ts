@@ -51,7 +51,6 @@ describe('Calculations & Costing Logic', () => {
       low_stock_threshold: 5,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      sync_status: 'synced',
     };
 
     it('matches the exact example from specification', () => {
@@ -132,7 +131,6 @@ describe('Calculations & Costing Logic', () => {
           low_stock_threshold: 2,
           created_at: '',
           updated_at: '',
-          sync_status: 'synced',
         },
       ],
     ]);

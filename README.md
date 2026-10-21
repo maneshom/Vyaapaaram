@@ -12,7 +12,7 @@ A simple, reliable inventory, sales, and profit management Progressive Web App (
    - *Delivery charged to customer* (added to customer bill)
    - *Courier cost paid* (actual discounted cost paid to courier)
 4. **Transparent Profit Calculation**: Understand exact stock levels, valuation, and **Profit after direct sale costs** through clear period reports and product-level breakdowns.
-5. **Offline-First PWA & Cloud Sync**: Use seamlessly without an internet connection with local IndexedDB storage; automatically sync queued changes to Supabase cloud when online with idempotent retries.
+5. **Local Storage & Fast PWA**: Instant response times with local IndexedDB storage and full offline capabilities as an installable PWA.
 
 ---
 
@@ -76,9 +76,7 @@ $$\text{Profit after direct sale costs} = \text{Product Selling Revenue} + \text
    - One-click CSV report export.
 6. **Settings**:
    - Store name and Rupee format toggle (`₹` vs `Rs`).
-   - Connectivity status and unsynced changes counter.
-   - Supabase cloud credentials (URL and Public Anon Key) and Workspace ID.
-   - JSON data backup download and sample demo data loader.
+   - JSON data backup export, demo data loader, and reset tools.
 
 ---
 
@@ -87,8 +85,7 @@ $$\text{Profit after direct sale costs} = \text{Product Selling Revenue} + \text
 - **Frontend**: React 19, TypeScript, Lucide Icons
 - **Bundler & PWA**: Vite 8, `vite-plugin-pwa` (Workbox offline service worker and web manifest)
 - **Local Storage**: IndexedDB via `idb` with automatic in-memory fallback for headless/test environments
-- **Cloud Backend**: Supabase (PostgreSQL with Row Level Security and idempotent upserts)
-- **Testing**: Vitest (Unit and integration tests for calculations, money math, repository transactions, and sync)
+- **Testing**: Vitest (Unit and integration tests for calculations, money math, and repository transactions)
 
 ---
 
@@ -119,21 +116,11 @@ npm run build
 
 ## 🌐 Deploy to GitHub Pages
 
-This repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically builds, tests, and deploys the app to GitHub Pages on every push to `master`.
+This repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically builds, tests, and deploys the app to GitHub Pages **when a pull request is merged into `master`** (or manually via `workflow_dispatch`).
 
 ### One-Time Setup in GitHub:
 1. Go to your repository on GitHub: `https://github.com/maneshom/Vyaapaaram`.
 2. Click **Settings** > **Pages** (under the "Code and automation" section).
 3. Under **Build and deployment** > **Source**, select **GitHub Actions** (instead of "Deploy from a branch").
-4. Push your changes to `master` (or trigger manually via **Actions** > **Deploy to GitHub Pages** > **Run workflow**).
-5. The live app will be published at:
+4. When you merge code into `master` (or trigger manually via **Actions** > **Deploy to GitHub Pages** > **Run workflow**), the workflow runs and publishes the live site at:
    `https://maneshom.github.io/Vyaapaaram/`
-
----
-
-## ☁️ Cloud Persistence (Supabase Setup)
-
-To enable multi-device cloud sync:
-1. Create a Supabase project at [supabase.com](https://supabase.com).
-2. Execute the migration file located at `supabase/migrations/20261020000000_vyaapaaram_init.sql` in the Supabase SQL editor.
-3. In the Vyaapaaram **Settings** tab, enter your **Supabase URL** and **Anon Public API Key**, then click **Save Preferences** and **Sync Now**.

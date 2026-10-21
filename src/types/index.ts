@@ -1,5 +1,3 @@
-export type SyncStatus = 'synced' | 'pending' | 'local_only' | 'failed';
-
 export type CurrencyPreference = 'symbol' | 'text'; // 'symbol' = ₹, 'text' = Rs
 
 export interface Product {
@@ -13,9 +11,6 @@ export interface Product {
   low_stock_threshold: number; // Alert threshold (e.g. 5)
   created_at: string;
   updated_at: string;
-  sync_status: SyncStatus;
-  synced_at?: string;
-  sync_error?: string;
 }
 
 export interface Purchase {
@@ -29,9 +24,6 @@ export interface Purchase {
   supplier?: string;
   note?: string;
   created_at: string;
-  sync_status: SyncStatus;
-  synced_at?: string;
-  sync_error?: string;
 }
 
 export interface SaleItem {
@@ -65,20 +57,12 @@ export interface Sale {
   void_reason?: string;
   voided_at?: string;
   created_at: string;
-  sync_status: SyncStatus;
-  synced_at?: string;
-  sync_error?: string;
 }
 
 export interface AppSettings {
   id: string; // singleton 'default'
   business_name: string;
   currency_format: CurrencyPreference;
-  supabase_url?: string;
-  supabase_anon_key?: string;
-  cloud_sync_enabled: boolean;
-  workspace_id: string;
-  last_synced_at?: string;
 }
 
 export interface ReportPeriodFilter {

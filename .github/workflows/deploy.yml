@@ -1,11 +1,12 @@
 name: Deploy to GitHub Pages
 
 on:
-  push:
+  pull_request:
+    types:
+      - closed
     branches:
       - master
       - main
-      - v1
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -22,6 +23,8 @@ concurrency:
 jobs:
   build:
     name: Build & Test
+    # Only run when a pull request is merged into master/main or manually triggered
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

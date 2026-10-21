@@ -181,5 +181,45 @@ describe('Repository Atomic Operations & Inventory Lifecycle', () => {
     expect(reports.financialSummary.total_sales_count).toBe(0);
     expect(reports.financialSummary.total_revenue_paise).toBe(0);
   });
+
+  it('allows deleting an unused product, but prevents deleting products with transaction history', async () => {
+    // 1. Create a product without any purchases or sales
+    const unusedProd = await repo.saveProduct({
+      name: 'Unused Test Item',
+      unit: 'pcs',
+      current_stock: 0,
+      average_cost_paise: 0,
+    });
+
+    const usageBefore = await repo.checkProductUsage(unusedProd.id);
+    expect(usageBefore.canDelete).toBe(true);
+
+    // Deleting should succeed
+    await repo.deleteProduct(unusedProd.id);
+    const deletedCheck = await repo.getProduct(unusedProd.id);
+    expect(deletedCheck).toBeUndefined();
+
+    // 2. Create another product and record a purchase for it
+    const purchasedProd = await repo.saveProduct({
+      name: 'Item With Purchases',
+      unit: 'kg',
+      current_stock: 0,
+      average_cost_paise: 0,
+    });
+    await repo.recordPurchase({
+      product_id: purchasedProd.id,
+      quantity_received: 5,
+      unit_cost_paise: 1000,
+      date: '2026-10-21',
+    });
+
+    const usageAfterPurchase = await repo.checkProductUsage(purchasedProd.id);
+    expect(usageAfterPurchase.canDelete).toBe(false);
+    expect(usageAfterPurchase.purchaseCount).toBe(1);
+
+    await expect(repo.deleteProduct(purchasedProd.id)).rejects.toThrow(
+      /purchase record/
+    );
+  });
 });
 
