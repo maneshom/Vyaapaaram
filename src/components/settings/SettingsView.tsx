@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { repository } from '../../storage/repository';
 import { downloadJSONBackup } from '../../utils/export';
@@ -9,6 +9,7 @@ import {
   Trash2,
   Download,
   Upload,
+  Sparkles,
 } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
@@ -22,8 +23,11 @@ export const SettingsView: React.FC = () => {
   const [currencyFormat, setCurrencyFormat] = useState(settings.currency_format || 'symbol');
 
   const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<'success' | 'danger' | 'info'>('info');
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setBusinessName(settings.business_name || '');
@@ -33,7 +37,6 @@ export const SettingsView: React.FC = () => {
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    setSaveSuccess(false);
     setMessage(null);
 
     try {
@@ -41,10 +44,10 @@ export const SettingsView: React.FC = () => {
         business_name: businessName.trim() || 'Vyaapaaram Store',
         currency_format: currencyFormat as 'symbol' | 'text',
       });
-      setSaveSuccess(true);
+      setMessageType('success');
       setMessage('Preferences saved successfully.');
     } catch (err: any) {
-      setSaveSuccess(false);
+      setMessageType('danger');
       setMessage(err?.message || 'Failed to save preferences');
     } finally {
       setIsSaving(false);
@@ -65,8 +68,78 @@ export const SettingsView: React.FC = () => {
         purchases,
         sales,
       });
+      setMessageType('success');
+      setMessage('JSON backup downloaded successfully.');
     } catch (e: any) {
-      alert(`Backup failed: ${e?.message}`);
+      setMessageType('danger');
+      setMessage(`Backup export failed: ${e?.message}`);
+    }
+  };
+
+  const handleRestoreClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsRestoring(true);
+      setMessage(null);
+
+      const fileText = await file.text();
+      let backupData: any;
+      try {
+        backupData = JSON.parse(fileText);
+      } catch {
+        throw new Error('The selected file is not a valid JSON document.');
+      }
+
+      if (!backupData || typeof backupData !== 'object') {
+        throw new Error('Invalid backup structure.');
+      }
+
+      const pCount = Array.isArray(backupData.products) ? backupData.products.length : 0;
+      const puCount = Array.isArray(backupData.purchases) ? backupData.purchases.length : 0;
+      const sCount = Array.isArray(backupData.sales) ? backupData.sales.length : 0;
+      const storeName = backupData.settings?.business_name;
+
+      if (pCount === 0 && puCount === 0 && sCount === 0 && !storeName) {
+        throw new Error('The selected file contains no valid products, purchases, sales, or settings.');
+      }
+
+      const confirmPrompt =
+        `Restore from "${file.name}"?\n\n` +
+        `Summary of backup contents:\n` +
+        `• Products: ${pCount}\n` +
+        `• Purchases: ${puCount}\n` +
+        `• Sales: ${sCount}\n` +
+        (storeName ? `• Store / Shop Name: ${storeName}\n` : '') +
+        `\n⚠️ WARNING: Restoring will overwrite and replace all current local products, purchases, and sales! Are you sure you want to proceed?`;
+
+      if (!window.confirm(confirmPrompt)) {
+        return;
+      }
+
+      const result = await repository.restoreBackup(backupData);
+      await refreshData();
+
+      setMessageType('success');
+      setMessage(
+        `Backup restored successfully from "${file.name}"! Restored ${result.productCount} product(s), ${result.purchaseCount} purchase record(s), and ${result.saleCount} sale(s).`
+      );
+    } catch (err: any) {
+      setMessageType('danger');
+      setMessage(`Failed to restore backup: ${err?.message || 'Unknown error'}`);
+    } finally {
+      setIsRestoring(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -78,10 +151,12 @@ export const SettingsView: React.FC = () => {
     ) {
       try {
         await repository.seedSampleData();
-        refreshData();
-        alert('Sample demo data loaded successfully!');
+        await refreshData();
+        setMessageType('success');
+        setMessage('Sample automotive demo data loaded successfully!');
       } catch (e: any) {
-        alert(`Failed to load demo data: ${e?.message}`);
+        setMessageType('danger');
+        setMessage(`Failed to load demo data: ${e?.message}`);
       }
     }
   };
@@ -93,10 +168,12 @@ export const SettingsView: React.FC = () => {
     if (confirmation === 'DELETE') {
       try {
         await repository.clearAllData();
-        refreshData();
-        alert('All local store data has been deleted.');
+        await refreshData();
+        setMessageType('info');
+        setMessage('All local catalog, purchase, and sale records have been reset.');
       } catch (e: any) {
-        alert(`Failed to reset data: ${e?.message}`);
+        setMessageType('danger');
+        setMessage(`Failed to reset data: ${e?.message}`);
       }
     }
   };
@@ -115,7 +192,7 @@ export const SettingsView: React.FC = () => {
 
       {message && (
         <div
-          className={`alert ${saveSuccess ? 'alert-success' : 'alert-info'}`}
+          className={`alert alert-${messageType}`}
           style={{ marginBottom: '1.25rem' }}
         >
           {message}
@@ -219,11 +296,16 @@ export const SettingsView: React.FC = () => {
         </div>
 
         <div className="card-body">
+          <p style={{ fontSize: '0.875rem', color: 'var(--gray-600)', marginBottom: '1.25rem' }}>
+            Export your entire store catalog, stock purchases, sales history, and preferences to a portable JSON backup file, or restore from a previous backup file.
+          </p>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
             <button
               type="button"
               className="btn btn-secondary"
               onClick={handleBackupDownload}
+              disabled={isRestoring}
               style={{ justifyContent: 'center' }}
             >
               <Download size={16} /> Export JSON Backup
@@ -232,12 +314,31 @@ export const SettingsView: React.FC = () => {
             <button
               type="button"
               className="btn btn-secondary"
-              onClick={handleLoadDemoData}
+              onClick={handleRestoreClick}
+              disabled={isRestoring}
               style={{ justifyContent: 'center' }}
             >
-              <Upload size={16} /> Load Demo Retail Data
+              <Upload size={16} /> {isRestoring ? 'Restoring...' : 'Restore JSON Backup'}
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleLoadDemoData}
+              disabled={isRestoring}
+              style={{ justifyContent: 'center' }}
+            >
+              <Sparkles size={16} /> Load Demo Data
             </button>
           </div>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".json,application/json"
+            style={{ display: 'none' }}
+            onChange={handleFileSelect}
+          />
 
           <div
             style={{

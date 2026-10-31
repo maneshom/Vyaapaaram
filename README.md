@@ -57,9 +57,9 @@ $$\text{Profit after direct sale costs} = \text{Product Selling Revenue} + \text
    - Sales today, sales this month, and profit for the selected summary period (Today, Month, 30 Days).
    - Real-time stock counts, total inventory valuation, and low-stock alerts.
    - Recent sales stream with quick receipt modals and empty-state onboarding.
-2. **Products**:
-   - Catalog management (Name, SKU, Unit, Stock, Average Cost, Suggested Price, Low-stock alert threshold).
-   - Search by name or SKU; filter by All, Low Stock, and Out of Stock.
+2. **Products (Parts & Inventory)**:
+   - Parts catalog management with vehicle compatibility (Part Name, Car Brand, Car Model, Product Brand, SKU / Part #, Unit, Stock, Average Cost, Suggested Price, Low-stock alert threshold).
+   - Multi-dimensional filtering by Car Brand, Car Model, Product Brand, and stock levels (All, Low Stock, Out of Stock), plus fast search across all part and vehicle fields.
    - Direct "+ Add Stock" action from product rows.
 3. **Purchases (Stock Additions)**:
    - Record inward stock with live moving-average preview and total cost breakdown.

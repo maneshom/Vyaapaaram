@@ -65,6 +65,9 @@ export class Repository {
     id?: string;
     name: string;
     sku?: string;
+    car_brand?: string;
+    car_model?: string;
+    product_brand?: string;
     unit: string;
     current_stock?: number;
     average_cost_paise?: number;
@@ -86,6 +89,9 @@ export class Repository {
       id,
       name: trimmedName,
       sku: params.sku?.trim() || undefined,
+      car_brand: params.car_brand?.trim() || undefined,
+      car_model: params.car_model?.trim() || undefined,
+      product_brand: params.product_brand?.trim() || undefined,
       unit: params.unit?.trim() || 'pcs',
       current_stock: params.current_stock !== undefined ? Math.max(0, params.current_stock) : (existing?.current_stock ?? 0),
       average_cost_paise: params.average_cost_paise !== undefined ? Math.max(0, Math.round(params.average_cost_paise)) : (existing?.average_cost_paise ?? 0),
@@ -432,48 +438,244 @@ export class Repository {
     await this.storage.clearAllData();
   }
 
+  async restoreBackup(backup: {
+    settings?: Partial<AppSettings>;
+    products?: any[];
+    purchases?: any[];
+    sales?: any[];
+  }): Promise<{ productCount: number; purchaseCount: number; saleCount: number; hasSettings: boolean }> {
+    if (!backup || typeof backup !== 'object') {
+      throw new Error('Invalid backup file: content is not a valid JSON object.');
+    }
+
+    const products = Array.isArray(backup.products) ? backup.products : [];
+    const purchases = Array.isArray(backup.purchases) ? backup.purchases : [];
+    const sales = Array.isArray(backup.sales) ? backup.sales : [];
+    const settings = backup.settings && typeof backup.settings === 'object' ? backup.settings : undefined;
+
+    if (!Array.isArray(backup.products) && !Array.isArray(backup.purchases) && !Array.isArray(backup.sales) && !settings) {
+      throw new Error('Invalid backup file: does not contain products, purchases, sales, or settings.');
+    }
+
+    // Validate products basic structure
+    for (const prod of products) {
+      if (!prod || !prod.id || !prod.name) {
+        throw new Error('Invalid product record in backup: missing id or name.');
+      }
+    }
+
+    // Validate purchases basic structure
+    for (const purch of purchases) {
+      if (!purch || !purch.id || !purch.product_id) {
+        throw new Error('Invalid purchase record in backup: missing id or product_id.');
+      }
+    }
+
+    // Validate sales basic structure
+    for (const sale of sales) {
+      if (!sale || !sale.id || !Array.isArray(sale.items)) {
+        throw new Error('Invalid sale record in backup: missing id or items array.');
+      }
+    }
+
+    // Clear current products, purchases, and sales
+    await this.clearAllData();
+
+    // Restore settings if provided
+    if (settings && settings.business_name) {
+      await this.storage.putSettings({
+        id: settings.id || 'default',
+        business_name: String(settings.business_name),
+        currency_format: settings.currency_format === 'text' ? 'text' : 'symbol',
+      });
+    }
+
+    // Restore products with data sanitization & non-empty defaults for new/missing fields
+    const productMap = new Map<string, Product>();
+    for (const p of products) {
+      const sanitizedProduct: Product = {
+        ...p,
+        id: String(p.id),
+        name: String(p.name || 'Unnamed Product').trim(),
+        sku: p.sku ? String(p.sku).trim() : undefined,
+        car_brand: p.car_brand?.trim() || 'Universal',
+        car_model: p.car_model?.trim() || 'Universal',
+        product_brand: p.product_brand?.trim() || 'Standard / OEM',
+        unit: p.unit?.trim() || 'pcs',
+        current_stock:
+          p.current_stock !== undefined && p.current_stock !== null && p.current_stock !== ''
+            ? Number(p.current_stock)
+            : 0,
+        average_cost_paise:
+          p.average_cost_paise !== undefined && p.average_cost_paise !== null && p.average_cost_paise !== ''
+            ? Math.round(Number(p.average_cost_paise))
+            : 0,
+        selling_price_suggestion_paise:
+          p.selling_price_suggestion_paise !== undefined &&
+          p.selling_price_suggestion_paise !== null &&
+          p.selling_price_suggestion_paise !== ''
+            ? Math.round(Number(p.selling_price_suggestion_paise))
+            : undefined,
+        low_stock_threshold:
+          p.low_stock_threshold !== undefined &&
+          p.low_stock_threshold !== null &&
+          p.low_stock_threshold !== ''
+            ? Number(p.low_stock_threshold)
+            : 5,
+        created_at: p.created_at || new Date().toISOString(),
+        updated_at: p.updated_at || p.created_at || new Date().toISOString(),
+      };
+      await this.storage.putProduct(sanitizedProduct);
+      productMap.set(sanitizedProduct.id, sanitizedProduct);
+    }
+
+    // Restore purchases with data sanitization
+    for (const pu of purchases) {
+      const qty = Number(pu.quantity_received) || 1;
+      const unitCost = Math.round(Number(pu.unit_cost_paise) || 0);
+      const totalCost = pu.total_cost_paise !== undefined ? Math.round(Number(pu.total_cost_paise)) : qty * unitCost;
+      const prodName = pu.product_name || productMap.get(String(pu.product_id))?.name || 'Item';
+
+      const sanitizedPurchase: Purchase = {
+        ...pu,
+        id: String(pu.id),
+        product_id: String(pu.product_id),
+        product_name: String(prodName).trim(),
+        quantity_received: qty,
+        unit_cost_paise: unitCost,
+        total_cost_paise: totalCost,
+        date: pu.date || getTodayDateString(),
+        supplier: pu.supplier ? String(pu.supplier).trim() : 'Direct Supplier',
+        note: pu.note ? String(pu.note).trim() : undefined,
+        created_at: pu.created_at || new Date().toISOString(),
+      };
+      await this.storage.putPurchase(sanitizedPurchase);
+    }
+
+    // Restore sales with data sanitization
+    for (let i = 0; i < sales.length; i++) {
+      const s = sales[i];
+      const fallbackSaleNumber = `VY-${1001 + i}`;
+      const sanitizedSale: Sale = {
+        ...s,
+        id: String(s.id),
+        sale_number: s.sale_number ? String(s.sale_number) : fallbackSaleNumber,
+        date: s.date || getTodayDateString(),
+        customer_name: s.customer_name ? String(s.customer_name).trim() : 'Walk-in Customer',
+        customer_phone: s.customer_phone ? String(s.customer_phone).trim() : undefined,
+        items: (s.items || []).map((it: any) => {
+          const itemQty = Number(it.quantity) || 1;
+          const sellingPrice = Math.round(Number(it.selling_price_paise) || 0);
+          const costPrice = Math.round(Number(it.cost_price_paise) || 0);
+          const relatedProduct = productMap.get(String(it.product_id));
+          return {
+            ...it,
+            product_id: String(it.product_id),
+            product_name: String(it.product_name || relatedProduct?.name || 'Item').trim(),
+            unit: String(it.unit || relatedProduct?.unit || 'pcs').trim(),
+            quantity: itemQty,
+            selling_price_paise: sellingPrice,
+            cost_price_paise: costPrice,
+            subtotal_paise:
+              it.subtotal_paise !== undefined
+                ? Math.round(Number(it.subtotal_paise))
+                : itemQty * sellingPrice,
+            cogs_paise:
+              it.cogs_paise !== undefined
+                ? Math.round(Number(it.cogs_paise))
+                : itemQty * costPrice,
+          };
+        }),
+        product_selling_revenue_paise: Math.round(Number(s.product_selling_revenue_paise) || 0),
+        delivery_charged_paise: Math.round(Number(s.delivery_charged_paise) || 0),
+        courier_cost_paid_paise: Math.round(Number(s.courier_cost_paid_paise) || 0),
+        other_direct_expenses_paise: Math.round(Number(s.other_direct_expenses_paise) || 0),
+        total_amount_paise: Math.round(Number(s.total_amount_paise) || 0),
+        total_cogs_paise: Math.round(Number(s.total_cogs_paise) || 0),
+        profit_after_direct_costs_paise: Math.round(Number(s.profit_after_direct_costs_paise) || 0),
+        status: s.status === 'voided' ? 'voided' : 'completed',
+        void_reason: s.void_reason ? String(s.void_reason) : undefined,
+        voided_at: s.voided_at ? String(s.voided_at) : undefined,
+        created_at: s.created_at || new Date().toISOString(),
+      };
+      await this.storage.putSale(sanitizedSale);
+    }
+
+    return {
+      productCount: products.length,
+      purchaseCount: purchases.length,
+      saleCount: sales.length,
+      hasSettings: Boolean(settings),
+    };
+  }
+
   async seedSampleData(): Promise<void> {
     await this.clearAllData();
 
-    // 1. Seed realistic retail demo products
+    // 1. Seed realistic automotive spare parts demo catalog
     const p1 = await this.saveProduct({
-      name: 'Basmati Rice Premium (5kg)',
-      sku: 'RIC-BAS-05',
-      unit: 'pack',
-      current_stock: 25,
-      average_cost_paise: 42000, // ₹420.00
-      selling_price_suggestion_paise: 55000, // ₹550.00
-      low_stock_threshold: 8,
+      name: 'Front Ceramic Brake Pads Set',
+      car_brand: 'Maruti Suzuki',
+      car_model: 'Swift / Dzire',
+      product_brand: 'Bosch',
+      sku: 'BP-MS-001',
+      unit: 'set',
+      current_stock: 18,
+      average_cost_paise: 85000, // ₹850.00
+      selling_price_suggestion_paise: 125000, // ₹1,250.00
+      low_stock_threshold: 5,
     });
 
     const p2 = await this.saveProduct({
-      name: 'Organic Toor Dal (1kg)',
-      sku: 'DAL-TOOR-01',
-      unit: 'kg',
+      name: 'Spin-On Engine Oil Filter',
+      car_brand: 'Hyundai',
+      car_model: 'Creta / Venue',
+      product_brand: 'Purolator',
+      sku: 'OF-HY-002',
+      unit: 'pcs',
       current_stock: 4, // Low stock!
-      average_cost_paise: 13000, // ₹130.00
-      selling_price_suggestion_paise: 17500, // ₹175.00
+      average_cost_paise: 18000, // ₹180.00
+      selling_price_suggestion_paise: 29000, // ₹290.00
       low_stock_threshold: 10,
     });
 
     const p3 = await this.saveProduct({
-      name: 'Cold Pressed Coconut Oil (1L)',
-      sku: 'OIL-COC-01',
-      unit: 'bottle',
-      current_stock: 15,
-      average_cost_paise: 24000, // ₹240.00
-      selling_price_suggestion_paise: 32000, // ₹320.00
-      low_stock_threshold: 5,
+      name: 'Clutch Disc & Pressure Plate Kit',
+      car_brand: 'Toyota',
+      car_model: 'Innova Crysta',
+      product_brand: 'Valeo',
+      sku: 'CP-TY-003',
+      unit: 'kit',
+      current_stock: 6,
+      average_cost_paise: 480000, // ₹4,800.00
+      selling_price_suggestion_paise: 650000, // ₹6,500.00
+      low_stock_threshold: 3,
     });
 
     const p4 = await this.saveProduct({
-      name: 'Spiced Filter Coffee Blend (500g)',
-      sku: 'COF-BLD-05',
+      name: 'Laser Iridium Spark Plugs (4 Pcs)',
+      car_brand: 'Honda',
+      car_model: 'City / Civic',
+      product_brand: 'NGK',
+      sku: 'SP-HN-004',
       unit: 'pack',
+      current_stock: 12,
+      average_cost_paise: 140000, // ₹1,400.00
+      selling_price_suggestion_paise: 210000, // ₹2,100.00
+      low_stock_threshold: 4,
+    });
+
+    const p5 = await this.saveProduct({
+      name: 'Vented Front Brake Rotors (Pair)',
+      car_brand: 'Mahindra',
+      car_model: 'Thar / Scorpio',
+      product_brand: 'Brembo',
+      sku: 'DR-MH-005',
+      unit: 'pair',
       current_stock: 0, // Out of stock!
-      average_cost_paise: 18000, // ₹180.00
-      selling_price_suggestion_paise: 26000, // ₹260.00
-      low_stock_threshold: 6,
+      average_cost_paise: 320000, // ₹3,200.00
+      selling_price_suggestion_paise: 460000, // ₹4,600.00
+      low_stock_threshold: 2,
     });
 
     const todayStr = getTodayDateString();
@@ -481,20 +683,20 @@ export class Repository {
     // 2. Seed historical purchases
     await this.recordPurchase({
       product_id: p1.id,
-      quantity_received: 30,
-      unit_cost_paise: 42000,
+      quantity_received: 20,
+      unit_cost_paise: 85000,
       date: todayStr,
-      supplier: 'Punjab Agro Wholesalers',
-      note: 'Bulk harvest dispatch INV-492',
+      supplier: 'Bosch Automotive India Dist.',
+      note: 'Stock replenishment INV-7821',
     });
 
     await this.recordPurchase({
       product_id: p2.id,
       quantity_received: 10,
-      unit_cost_paise: 13000,
+      unit_cost_paise: 18000,
       date: todayStr,
-      supplier: 'Deccan Organic Mills',
-      note: 'First lot grade A',
+      supplier: 'Purolator Filters Depot',
+      note: 'Direct factory batch',
     });
 
     // 3. Seed sales with customer-specific selling price & courier amounts
@@ -503,18 +705,18 @@ export class Repository {
         {
           product_id: p1.id,
           quantity: 2,
-          selling_price_paise: 54000, // Customer-specific: ₹540.00 instead of ₹550
+          selling_price_paise: 120000, // Customer-specific: ₹1,200.00 instead of ₹1,250
         },
         {
           product_id: p2.id,
-          quantity: 3,
-          selling_price_paise: 17500,
+          quantity: 2,
+          selling_price_paise: 29000,
         },
       ],
-      delivery_charged_paise: 5000, // ₹50.00 delivery charged to customer
-      courier_cost_paid_paise: 3500, // ₹35.00 paid to courier after discount
-      other_direct_expenses_paise: 500, // ₹5.00 packaging material
-      customer_name: 'Ananya Sharma',
+      delivery_charged_paise: 15000, // ₹150.00 courier charged to customer
+      courier_cost_paid_paise: 10000, // ₹100.00 paid to courier service
+      other_direct_expenses_paise: 2000, // ₹20.00 foam box packaging
+      customer_name: 'Apex Motors Garage',
       customer_phone: '9876543210',
       date: todayStr,
     });
@@ -522,14 +724,14 @@ export class Repository {
     await this.recordSale({
       items: [
         {
-          product_id: p3.id,
-          quantity: 2,
-          selling_price_paise: 32000,
+          product_id: p4.id,
+          quantity: 1,
+          selling_price_paise: 210000,
         },
       ],
       delivery_charged_paise: 0,
       courier_cost_paid_paise: 0,
-      customer_name: 'Suresh Kumar (Walk-in)',
+      customer_name: 'Rajesh Sharma (Walk-in)',
       date: todayStr,
     });
   }

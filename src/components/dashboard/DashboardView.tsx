@@ -230,6 +230,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <td>
                         <strong style={{ color: 'var(--gray-900)' }}>{p.name}</strong>
                         {p.sku && <span style={{ color: 'var(--gray-500)', fontSize: '0.75rem', marginLeft: '6px' }}>({p.sku})</span>}
+                        {(p.car_brand || p.car_model || p.product_brand) && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)', marginTop: '2px' }}>
+                            {[p.car_brand, p.car_model].filter(Boolean).join(' ')} {p.product_brand ? `• ${p.product_brand}` : ''}
+                          </div>
+                        )}
                       </td>
                       <td>
                         {p.current_stock <= 0 ? (

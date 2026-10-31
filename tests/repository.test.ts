@@ -221,5 +221,242 @@ describe('Repository Atomic Operations & Inventory Lifecycle', () => {
       /purchase record/
     );
   });
+
+  it('stores and retrieves automotive part attributes: car_brand, car_model, and product_brand', async () => {
+    const part = await repo.saveProduct({
+      name: 'Front Brake Pads',
+      car_brand: 'Maruti Suzuki',
+      car_model: 'Swift / Dzire',
+      product_brand: 'Bosch',
+      sku: 'BP-MS-001',
+      unit: 'set',
+      current_stock: 10,
+      average_cost_paise: 80000,
+      selling_price_suggestion_paise: 120000,
+      low_stock_threshold: 3,
+    });
+
+    expect(part.car_brand).toBe('Maruti Suzuki');
+    expect(part.car_model).toBe('Swift / Dzire');
+    expect(part.product_brand).toBe('Bosch');
+    expect(part.sku).toBe('BP-MS-001');
+
+    const fetched = await repo.getProduct(part.id);
+    expect(fetched?.car_brand).toBe('Maruti Suzuki');
+    expect(fetched?.car_model).toBe('Swift / Dzire');
+    expect(fetched?.product_brand).toBe('Bosch');
+
+    // Test seedSampleData loads automotive parts catalog correctly
+    await repo.seedSampleData();
+    const allProducts = await repo.getProducts();
+    expect(allProducts.length).toBeGreaterThanOrEqual(4);
+    const boschPart = allProducts.find((p) => p.product_brand === 'Bosch');
+    expect(boschPart).toBeDefined();
+    expect(boschPart?.car_brand).toBe('Maruti Suzuki');
+  });
+
+  it('restores backup data cleanly, replacing existing records', async () => {
+    // 1. Initial product before restore
+    await repo.saveProduct({
+      name: 'Old Initial Part',
+      unit: 'pcs',
+      current_stock: 50,
+      average_cost_paise: 1000,
+    });
+    const beforeProducts = await repo.getProducts();
+    expect(beforeProducts.length).toBe(1);
+
+    // 2. Prepare backup payload
+    const backupPayload = {
+      settings: {
+        id: 'default',
+        business_name: 'Metro Auto Spares & Performance',
+        currency_format: 'text' as const,
+      },
+      products: [
+        {
+          id: 'prod_spark_01',
+          name: 'Iridium Spark Plug',
+          car_brand: 'Honda',
+          car_model: 'City / Civic',
+          product_brand: 'NGK',
+          sku: 'NGK-SP-001',
+          unit: 'pcs',
+          current_stock: 12,
+          average_cost_paise: 45000,
+          selling_price_suggestion_paise: 75000,
+          low_stock_threshold: 4,
+          created_at: '2026-10-01T00:00:00.000Z',
+          updated_at: '2026-10-01T00:00:00.000Z',
+        },
+      ],
+      purchases: [
+        {
+          id: 'purch_01',
+          product_id: 'prod_spark_01',
+          product_name: 'Iridium Spark Plug',
+          quantity_received: 12,
+          unit_cost_paise: 45000,
+          total_cost_paise: 540000,
+          date: '2026-10-05',
+          supplier: 'NGK Direct Distributor',
+          note: 'Stock batch 1',
+          created_at: '2026-10-05T00:00:00.000Z',
+        },
+      ],
+      sales: [
+        {
+          id: 'sale_01',
+          sale_number: 'SALE-1001',
+          date: '2026-10-10',
+          customer_name: 'Speedy Wheels Garage',
+          customer_phone: '9876500000',
+          items: [
+            {
+              product_id: 'prod_spark_01',
+              product_name: 'Iridium Spark Plug',
+              unit: 'pcs',
+              quantity: 4,
+              selling_price_paise: 75000,
+              cost_price_paise: 45000,
+              subtotal_paise: 300000,
+              cogs_paise: 180000,
+            },
+          ],
+          product_selling_revenue_paise: 300000,
+          delivery_charged_paise: 10000,
+          courier_cost_paid_paise: 6000,
+          other_direct_expenses_paise: 1000,
+          total_amount_paise: 310000,
+          total_cogs_paise: 180000,
+          profit_after_direct_costs_paise: 123000,
+          status: 'completed' as const,
+          created_at: '2026-10-10T00:00:00.000Z',
+        },
+      ],
+    };
+
+    // 3. Execute restore
+    const summary = await repo.restoreBackup(backupPayload);
+    expect(summary.productCount).toBe(1);
+    expect(summary.purchaseCount).toBe(1);
+    expect(summary.saleCount).toBe(1);
+    expect(summary.hasSettings).toBe(true);
+
+    // 4. Verify old product was replaced with restored product
+    const restoredProducts = await repo.getProducts();
+    expect(restoredProducts.length).toBe(1);
+    expect(restoredProducts[0].id).toBe('prod_spark_01');
+    expect(restoredProducts[0].name).toBe('Iridium Spark Plug');
+    expect(restoredProducts[0].car_brand).toBe('Honda');
+    expect(restoredProducts[0].car_model).toBe('City / Civic');
+    expect(restoredProducts[0].product_brand).toBe('NGK');
+
+    // 5. Verify purchases and sales
+    const restoredPurchases = await repo.getPurchases();
+    expect(restoredPurchases.length).toBe(1);
+    expect(restoredPurchases[0].id).toBe('purch_01');
+    expect(restoredPurchases[0].supplier).toBe('NGK Direct Distributor');
+
+    const restoredSales = await repo.getSales();
+    expect(restoredSales.length).toBe(1);
+    expect(restoredSales[0].id).toBe('sale_01');
+    expect(restoredSales[0].customer_name).toBe('Speedy Wheels Garage');
+
+    // 6. Verify settings restored
+    const restoredSettings = await repo.getSettings();
+    expect(restoredSettings.business_name).toBe('Metro Auto Spares & Performance');
+    expect(restoredSettings.currency_format).toBe('text');
+  });
+
+  it('rejects invalid backup structures with descriptive errors', async () => {
+    // Non-object
+    await expect(repo.restoreBackup(null as any)).rejects.toThrow(/not a valid JSON object/);
+    await expect(repo.restoreBackup('string' as any)).rejects.toThrow(/not a valid JSON object/);
+
+    // Empty object without relevant keys
+    await expect(repo.restoreBackup({} as any)).rejects.toThrow(/does not contain products, purchases, sales, or settings/);
+
+    // Invalid product record
+    await expect(
+      repo.restoreBackup({
+        products: [{ name: 'Missing ID' } as any],
+      })
+    ).rejects.toThrow(/missing id or name/);
+
+    // Invalid purchase record
+    await expect(
+      repo.restoreBackup({
+        purchases: [{ id: 'purch_1' } as any],
+      })
+    ).rejects.toThrow(/missing id or product_id/);
+
+    // Invalid sale record
+    await expect(
+      repo.restoreBackup({
+        sales: [{ id: 'sale_1', items: 'not an array' } as any],
+      })
+    ).rejects.toThrow(/missing id or items array/);
+  });
+
+  it('populates non-empty default values when restoring JSON with new or missing fields', async () => {
+    // Legacy backup payload with minimal fields (no car_brand, car_model, product_brand, unit, etc.)
+    const legacyPayload = {
+      products: [
+        {
+          id: 'legacy_prod_1',
+          name: 'Universal Brake Fluid DOT 4',
+          // car_brand, car_model, product_brand, unit, low_stock_threshold omitted
+        },
+      ],
+      purchases: [
+        {
+          id: 'legacy_purch_1',
+          product_id: 'legacy_prod_1',
+          // supplier, date, quantity_received omitted
+        },
+      ],
+      sales: [
+        {
+          id: 'legacy_sale_1',
+          items: [
+            {
+              product_id: 'legacy_prod_1',
+              selling_price_paise: 25000,
+            },
+          ],
+          // sale_number, customer_name, status omitted
+        },
+      ],
+    };
+
+    const summary = await repo.restoreBackup(legacyPayload as any);
+    expect(summary.productCount).toBe(1);
+    expect(summary.purchaseCount).toBe(1);
+    expect(summary.saleCount).toBe(1);
+
+    const prods = await repo.getProducts();
+    const p = prods[0];
+    // Check non-empty default values are assigned
+    expect(p.car_brand).toBe('Universal');
+    expect(p.car_model).toBe('Universal');
+    expect(p.product_brand).toBe('Standard / OEM');
+    expect(p.unit).toBe('pcs');
+    expect(p.low_stock_threshold).toBe(5);
+    expect(p.current_stock).toBe(0);
+    expect(p.average_cost_paise).toBe(0);
+    expect(p.created_at).toBeTruthy();
+    expect(p.updated_at).toBeTruthy();
+
+    const purchases = await repo.getPurchases();
+    expect(purchases[0].supplier).toBe('Direct Supplier');
+    expect(purchases[0].product_name).toBe('Universal Brake Fluid DOT 4');
+    expect(purchases[0].quantity_received).toBe(1);
+
+    const sales = await repo.getSales();
+    expect(sales[0].customer_name).toBe('Walk-in Customer');
+    expect(sales[0].sale_number).toBeTruthy();
+    expect(sales[0].status).toBe('completed');
+  });
 });
 

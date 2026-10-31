@@ -17,6 +17,9 @@ export function exportReportsToCSV(params: {
   productReportItems: Array<{
     product_name: string;
     sku?: string;
+    car_brand?: string;
+    car_model?: string;
+    product_brand?: string;
     unit: string;
     current_stock: number;
     average_cost_paise: number;
@@ -49,13 +52,16 @@ export function exportReportsToCSV(params: {
 
   // Product Inventory & Performance Section
   lines.push('"PRODUCT STOCK & PERFORMANCE"');
-  lines.push('"Product Name","SKU","Unit","Current Stock","Avg Unit Cost (Rs)","Stock Value (Rs)","Units Sold","Revenue (Rs)","COGS (Rs)","Profit (Rs)"');
+  lines.push('"Part Name","SKU","Vehicle Brand","Vehicle Model","Part Brand","Unit","Current Stock","Avg Unit Cost (Rs)","Stock Value (Rs)","Units Sold","Revenue (Rs)","COGS (Rs)","Profit (Rs)"');
 
   for (const item of params.productReportItems) {
     lines.push(
       [
         `"${item.product_name.replace(/"/g, '""')}"`,
         `"${item.sku ? item.sku.replace(/"/g, '""') : ''}"`,
+        `"${item.car_brand ? item.car_brand.replace(/"/g, '""') : ''}"`,
+        `"${item.car_model ? item.car_model.replace(/"/g, '""') : ''}"`,
+        `"${item.product_brand ? item.product_brand.replace(/"/g, '""') : ''}"`,
         `"${item.unit}"`,
         item.current_stock,
         item.average_cost_paise / 100,

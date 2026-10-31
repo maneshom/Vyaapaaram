@@ -4,13 +4,17 @@ import { rupeesToPaise, paiseToRupees } from '../../utils/money';
 import { calculateMovingAverageCost } from '../../utils/calculations';
 import { getTodayDateString } from '../../utils/dates';
 import { useApp } from '../../context/AppContext';
+import { repository } from '../../storage/repository';
 import { X, ArrowRight, Info } from 'lucide-react';
+import { SearchableProductSelect } from '../common/SearchableProductSelect';
+import { SearchableCombobox } from '../common/SearchableCombobox';
 
 interface PurchaseModalProps {
   isOpen: boolean;
   onClose: () => void;
   products: Product[];
   initialProductId?: string;
+  onOpenCreateProduct?: () => void;
   onSave: (params: {
     product_id: string;
     quantity_received: number;
@@ -26,6 +30,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   onClose,
   products,
   initialProductId,
+  onOpenCreateProduct,
   onSave,
 }) => {
   const { formatCurrency, currencyPreference } = useApp();
@@ -34,6 +39,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
   const [unitCostRupees, setUnitCostRupees] = useState('');
   const [date, setDate] = useState(getTodayDateString());
   const [supplier, setSupplier] = useState('');
+  const [storedSuppliers, setStoredSuppliers] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +57,15 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
       setSupplier('');
       setNote('');
       setError(null);
+
+      // Load stored suppliers from past purchases for combobox
+      repository.getPurchases().then((list) => {
+        const set = new Set<string>();
+        for (const pu of list) {
+          if (pu.supplier?.trim()) set.add(pu.supplier.trim());
+        }
+        setStoredSuppliers(Array.from(set).sort());
+      }).catch(() => {});
     }
   }, [isOpen, initialProductId, products]);
 
@@ -155,20 +170,15 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
             )}
 
             <div className="form-group">
-              <label className="form-label">Select Product *</label>
-              <select
-                className="form-select"
-                value={productId}
-                onChange={(e) => setProductId(e.target.value)}
+              <label className="form-label">Select Product / Spare Part *</label>
+              <SearchableProductSelect
+                products={products}
+                selectedProductId={productId}
+                onSelectProduct={(id) => setProductId(id)}
+                onOpenCreateProduct={onOpenCreateProduct}
+                placeholder="Search part by name, vehicle, brand, or SKU..."
                 required
-              >
-                <option value="">-- Choose Product --</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} {p.sku ? `(${p.sku})` : ''} - Stock: {p.current_stock} {p.unit}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             {selectedProduct && (
@@ -179,21 +189,31 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
                   padding: '0.65rem 0.85rem',
                   borderRadius: 'var(--radius-md)',
                   marginBottom: '1rem',
-                  display: 'flex',
-                  justifyContent: 'space-between',
                   fontSize: '0.825rem',
                 }}
               >
-                <div>
-                  <span style={{ color: 'var(--gray-500)' }}>Current Stock: </span>
-                  <strong>
-                    {selectedProduct.current_stock} {selectedProduct.unit}
-                  </strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: (selectedProduct.car_brand || selectedProduct.car_model || selectedProduct.product_brand) ? '0.35rem' : 0 }}>
+                  <div>
+                    <span style={{ color: 'var(--gray-500)' }}>Current Stock: </span>
+                    <strong>
+                      {selectedProduct.current_stock} {selectedProduct.unit}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--gray-500)' }}>Current Avg Cost: </span>
+                    <strong>{formatCurrency(selectedProduct.average_cost_paise)}</strong>
+                  </div>
                 </div>
-                <div>
-                  <span style={{ color: 'var(--gray-500)' }}>Current Avg Cost: </span>
-                  <strong>{formatCurrency(selectedProduct.average_cost_paise)}</strong>
-                </div>
+                {(selectedProduct.car_brand || selectedProduct.car_model || selectedProduct.product_brand) && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--gray-600)', paddingTop: '0.35rem', borderTop: '1px solid var(--gray-200)', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    {(selectedProduct.car_brand || selectedProduct.car_model) && (
+                      <span>📂 Category: <strong>{[selectedProduct.car_brand, selectedProduct.car_model].filter(Boolean).join(' ')}</strong></span>
+                    )}
+                    {selectedProduct.product_brand && (
+                      <span>🏷️ Brand: <strong>{selectedProduct.product_brand}</strong></span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -309,13 +329,20 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Supplier Name (Optional)</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Metro Wholesalers"
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Supplier Name (Optional)</span>
+                  {storedSuppliers.length > 0 && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontWeight: 400 }}>
+                      {storedSuppliers.length} stored
+                    </span>
+                  )}
+                </label>
+                <SearchableCombobox
                   value={supplier}
-                  onChange={(e) => setSupplier(e.target.value)}
+                  onChange={(val) => setSupplier(val)}
+                  options={storedSuppliers}
+                  placeholder="Search or enter supplier (e.g. Bosch Distributor)..."
+                  createLabel="Create new supplier"
                 />
               </div>
             </div>
