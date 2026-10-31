@@ -4,7 +4,10 @@ import { rupeesToPaise, paiseToInputString } from '../../utils/money';
 import { calculateSaleTotals } from '../../utils/calculations';
 import { getTodayDateString } from '../../utils/dates';
 import { useApp } from '../../context/AppContext';
+import { repository } from '../../storage/repository';
 import { X, Plus, Trash2, AlertTriangle, HelpCircle } from 'lucide-react';
+import { SearchableCombobox } from '../common/SearchableCombobox';
+import { SearchableProductSelect } from '../common/SearchableProductSelect';
 
 interface SaleLineItemState {
   productId: string;
@@ -16,6 +19,7 @@ interface SaleModalProps {
   isOpen: boolean;
   onClose: () => void;
   products: Product[];
+  onOpenCreateProduct?: () => void;
   onSave: (params: {
     items: Array<{
       product_id: string;
@@ -35,6 +39,7 @@ export const SaleModal: React.FC<SaleModalProps> = ({
   isOpen,
   onClose,
   products,
+  onOpenCreateProduct,
   onSave,
 }) => {
   const { formatCurrency, currencyPreference } = useApp();
@@ -43,12 +48,13 @@ export const SaleModal: React.FC<SaleModalProps> = ({
   const [courierCostPaidRupees, setCourierCostPaidRupees] = useState('');
   const [otherExpensesRupees, setOtherExpensesRupees] = useState('');
   const [customerName, setCustomerName] = useState('');
+  const [storedCustomerNames, setStoredCustomerNames] = useState<string[]>([]);
   const [customerPhone, setCustomerPhone] = useState('');
   const [date, setDate] = useState(getTodayDateString());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize with one item line when opened
+  // Initialize with one item line when opened and load past customers
   useEffect(() => {
     if (isOpen) {
       if (products.length > 0) {
@@ -72,6 +78,15 @@ export const SaleModal: React.FC<SaleModalProps> = ({
       setCustomerPhone('');
       setDate(getTodayDateString());
       setError(null);
+
+      // Load past customer names for combobox
+      repository.getSales().then((list) => {
+        const set = new Set<string>();
+        for (const s of list) {
+          if (s.customer_name?.trim()) set.add(s.customer_name.trim());
+        }
+        setStoredCustomerNames(Array.from(set).sort());
+      }).catch(() => {});
     }
   }, [isOpen, products]);
 
@@ -292,13 +307,20 @@ export const SaleModal: React.FC<SaleModalProps> = ({
               }}
             >
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Customer Name</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Ramesh Patel"
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Customer Name</span>
+                  {storedCustomerNames.length > 0 && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontWeight: 400 }}>
+                      {storedCustomerNames.length} stored
+                    </span>
+                  )}
+                </label>
+                <SearchableCombobox
                   value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
+                  onChange={(val) => setCustomerName(val)}
+                  options={storedCustomerNames}
+                  placeholder="Search or enter customer..."
+                  createLabel="Create new customer"
                 />
               </div>
 
@@ -372,18 +394,14 @@ export const SaleModal: React.FC<SaleModalProps> = ({
                     }}
                   >
                     <div>
-                      <select
-                        className="form-select"
-                        value={item.productId}
-                        onChange={(e) => handleProductChange(idx, e.target.value)}
+                      <SearchableProductSelect
+                        products={products}
+                        selectedProductId={item.productId}
+                        onSelectProduct={(id) => handleProductChange(idx, id)}
+                        onOpenCreateProduct={onOpenCreateProduct}
+                        placeholder="Search part by name, vehicle, brand, SKU..."
                         required
-                      >
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} ({p.current_stock} {p.unit} in stock)
-                          </option>
-                        ))}
-                      </select>
+                      />
                       {prod && (
                         <div
                           style={{
@@ -396,6 +414,11 @@ export const SaleModal: React.FC<SaleModalProps> = ({
                               : 'var(--gray-500)',
                           }}
                         >
+                          {(prod.car_brand || prod.car_model || prod.product_brand) && (
+                            <span style={{ fontWeight: 600, color: 'var(--gray-700)', marginRight: '0.4rem' }}>
+                              📂 {[prod.car_brand, prod.car_model].filter(Boolean).join(' ')} {prod.product_brand ? `| 🏷️ ${prod.product_brand}` : ''} •
+                            </span>
+                          )}
                           Available: {prod.current_stock} {prod.unit} | Cost:{' '}
                           {formatCurrency(prod.average_cost_paise)}
                         </div>

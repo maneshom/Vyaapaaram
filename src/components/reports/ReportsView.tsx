@@ -304,11 +304,15 @@ export const ReportsView: React.FC = () => {
                       <tr key={item.product_id}>
                         <td>
                           <div style={{ fontWeight: 600 }}>{item.product_name}</div>
-                          {item.sku && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)' }}>
-                              {item.sku}
-                            </div>
-                          )}
+                          <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '2px' }}>
+                            {item.sku && <span>Part #: {item.sku}</span>}
+                            {(item.car_brand || item.car_model) && (
+                              <span>📂 {[item.car_brand, item.car_model].filter(Boolean).join(' ')}</span>
+                            )}
+                            {item.product_brand && (
+                              <span>🏷️ {item.product_brand}</span>
+                            )}
+                          </div>
                         </td>
                         <td>
                           {item.is_out_of_stock ? (

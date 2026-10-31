@@ -120,6 +120,9 @@ export const App: React.FC = () => {
       id: prod.id,
       name: prod.name,
       sku: prod.sku,
+      car_brand: prod.car_brand,
+      car_model: prod.car_model,
+      product_brand: prod.product_brand,
       unit: prod.unit,
       current_stock: 0,
       average_cost_paise: prod.average_cost_paise,
@@ -184,6 +187,7 @@ export const App: React.FC = () => {
         isOpen={isProductModalOpen}
         onClose={() => setIsProductModalOpen(false)}
         product={editingProduct}
+        existingProducts={products}
         onSave={handleSaveProduct}
         onDelete={(prod) => {
           setIsProductModalOpen(false);
@@ -206,6 +210,10 @@ export const App: React.FC = () => {
         onClose={() => setIsPurchaseModalOpen(false)}
         products={products}
         initialProductId={purchaseTargetProductId}
+        onOpenCreateProduct={() => {
+          setIsPurchaseModalOpen(false);
+          handleOpenNewProduct();
+        }}
         onSave={handleSavePurchase}
       />
 
@@ -214,6 +222,10 @@ export const App: React.FC = () => {
         isOpen={isSaleModalOpen}
         onClose={() => setIsSaleModalOpen(false)}
         products={products}
+        onOpenCreateProduct={() => {
+          setIsSaleModalOpen(false);
+          handleOpenNewProduct();
+        }}
         onSave={handleSaveSale}
       />
 

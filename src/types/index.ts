@@ -4,7 +4,10 @@ export interface Product {
   id: string;
   name: string;
   sku?: string;
-  unit: string; // e.g. "pcs", "kg", "box", "pack"
+  car_brand?: string; // Vehicle brand e.g. "Maruti Suzuki", "Honda", "Tata", "Hero", "Bajaj"
+  car_model?: string; // Vehicle model e.g. "Swift", "Activa", "Creta", "Pulsar"
+  product_brand?: string; // e.g. "Bosch", "Brembo", "Valeo", "OEM"
+  unit: string; // e.g. "pcs", "set", "pair", "kit", "box", "kg"
   current_stock: number;
   average_cost_paise: number; // Moving average cost per unit in integer paise
   selling_price_suggestion_paise?: number; // Optional default selling price
@@ -97,6 +100,9 @@ export interface ProductReportItem {
   product_id: string;
   product_name: string;
   sku?: string;
+  car_brand?: string;
+  car_model?: string;
+  product_brand?: string;
   unit: string;
   current_stock: number;
   average_cost_paise: number;

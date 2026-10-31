@@ -9,7 +9,7 @@ interface AppContextValue {
   formatCurrency: (paise: number, opts?: FormatMoneyOptions) => string;
   currencyPreference: CurrencyPreference;
   dataVersion: number;
-  refreshData: () => void;
+  refreshData: () => Promise<void>;
 }
 
 const defaultInitialSettings: AppSettings = {
@@ -42,8 +42,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  const refreshData = useCallback(() => {
+  const refreshData = useCallback(async () => {
     setDataVersion((v) => v + 1);
+    try {
+      const loaded = await repository.getSettings();
+      setSettings(loaded);
+    } catch (e) {
+      console.error('Failed to reload settings on refresh:', e);
+    }
   }, []);
 
   const updateSettings = useCallback(

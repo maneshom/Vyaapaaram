@@ -139,8 +139,18 @@ export const DeleteProductDialog: React.FC<DeleteProductDialogProps> = ({
                     marginBottom: '1rem',
                   }}
                 >
+                  {product.product_brand && (
+                    <div>
+                      <strong>Brand / Mfr:</strong> {product.product_brand}
+                    </div>
+                  )}
+                  {(product.car_brand || product.car_model) && (
+                    <div>
+                      <strong>Category / Model:</strong> {product.car_brand || ''} {product.car_model || ''}
+                    </div>
+                  )}
                   <div>
-                    <strong>SKU:</strong> {product.sku || 'None'}
+                    <strong>Part # / SKU:</strong> {product.sku || 'None'}
                   </div>
                   <div>
                     <strong>Current Stock:</strong> {product.current_stock} {product.unit}
